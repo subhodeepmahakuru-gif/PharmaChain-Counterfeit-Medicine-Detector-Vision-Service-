@@ -1,6 +1,7 @@
-python --version
-mkdir C:\pharmachain\pharmachain-vision
-cd C:\pharmachain\pharmachain-vision
-python -m venv venv
-venv\Scripts\activate
-notepad requirements.txt
+torch
+torchvision
+pillow
+numpy
+scikit-learn
+flask
+requests
