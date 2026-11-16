@@ -1,189 +1,134 @@
-1. Project Overview
-Role: Build the "eyes" of PharmaChain—an image classifier that inspects medicine packaging photos to determine whether they are genuine or counterfeit.   
-Member4_Counterfeit_Guide.pdf
+# PharmaChain: Counterfeit Medicine Detector (Vision Service)
 
-Integration: Member 2's /verify-image endpoint calls this service, and Member 5's portal uses its photo tab. If a pack is classified as counterfeit with a confidence 
-≥
-0.7
-≥0.7, Member 2's API triggers a blockchain update (set()) to flag the batch as compromised.   
-Member4_Counterfeit_Guide.pdf
-+ 3
+The computer vision component ("the eyes") of the **PharmaChain** system. This service uses a **ResNet-18** transfer learning model to classify photographs of medicine packaging as either `genuine` or `counterfeit`, exposing predictions via a lightweight Flask REST API.
 
-2. Technologies Used
-Language & Core Libraries: Python 3.10+, PyTorch, torchvision, Pillow, scikit-learn.   
-Member4_Counterfeit_Guide.pdf
+## System Architecture
 
-Backend & API: Flask, requests.   
-Member4_Counterfeit_Guide.pdf
-+ 1
-
-Architecture: ResNet-18 (transfer learning using ImageNet pretrained weights).   
-Member4_Counterfeit_Guide.pdf
-+ 2
-
-Environment: CPU laptop (or Google Colab with a GPU for larger datasets).   
-Member4_Counterfeit_Guide.pdf
-+ 2
-
-3. System Workflow
-Plaintext
+```text
+[Packaging Photo] ──► [Member 5 Portal] ──► [Member 2 API] ──► [Vision Service (Port 5001)]
+                                                                       │
+                                                   Returns {"label", "confidence"}
+                                                                       │
+                    (If label == "counterfeit" && confidence >= 0.7) ──▼
+                                                         [Blockchain State Updated]
 
 
-[Photo Uploaded] --> [Member 5 Portal] --> [Member 2 API (/verify-image)] 
-                                                    │
-                                                    ▼
-[Blockchain Batch: COMPROMISED] <── (Confidence >= 0.7) ── [Member 4 ML Service (Port 5001)]
-Input: A photo of a medicine pack is uploaded via Member 5’s portal.   
-Member4_Counterfeit_Guide.pdf
+Project Structure
+requirements.txt — Python dependencies (torch, torchvision, pillow, numpy, scikit-learn, flask, requests).
 
-API Call: Member 2's backend sends a POST request with the image to Member 4's service ([http://127.0.0.1:5001/predict](http://127.0.0.1:5001/predict)).   
-Member4_Counterfeit_Guide.pdf
-+ 2
+make_demo_data.py — Generates synthetic medicine box images with simulated defects (misspellings, missing holograms, shifted logos, blurs) to verify the pipeline.
 
-Classification: The ResNet-18 model evaluates the image and returns a JSON response containing the label (genuine or counterfeit), confidence score, and class probabilities (scores).   
-Member4_Counterfeit_Guide.pdf
-+ 2
+make_counterfeits.py — Takes real genuine packaging photos (real_genuine/), splits them by source photo to prevent data leakage, and generates synthesized counterfeit variants.
 
-Action: If the label is counterfeit and the confidence is 
-≥
-0.7
-≥0.7, Member 2's API updates the blockchain state for that batch to COMPROMISED.   
-Member4_Counterfeit_Guide.pdf
-+ 2
+train.py — Fine-tunes a pretrained ResNet-18 model, saves the best weights to model.pt, and outputs evaluation metrics to metrics.json.
 
-4. Main Files
-requirements.txt: Lists dependencies (torch, torchvision, pillow, numpy, scikit-learn, flask, requests).   
-Member4_Counterfeit_Guide.pdf
+predict.py — Standalone CLI script to run inference on a single image.
 
-make_demo_data.py (Option A): Generates a synthetic dataset of fake and genuine medicine boxes using code to quickly prove the pipeline works.   
-Member4_Counterfeit_Guide.pdf
-+ 1
+ml_service.py — Flask API server running on port 5001 with /health and /predict endpoints.
 
-make_counterfeits.py (Option B): Takes real genuine packaging photos and programmatically applies realistic defects (blurs, fades, tints, covered patches, shear, JPEG damage, noise) to build a robust training dataset while splitting files by source photo to prevent leakage.   
-Member4_Counterfeit_Guide.pdf
-+ 2
+test_service.py — Integration test script verifying both the local ML service and the end-to-end flow through Member 2's backend.
 
-train.py: Handles ResNet-18 transfer learning, applies custom augmentations (omitting horizontal flips and color jitter to preserve text/color clues), saves the best validation model to model.pt, and outputs metrics.json.   
-Member4_Counterfeit_Guide.pdf
-+ 2
+Setup & Installation
+Clone the repository and navigate to the project folder:
 
-predict.py: A command-line script that loads model.pt and classifies a single photo.   
-Member4_Counterfeit_Guide.pdf
-+ 1
-
-ml_service.py: A Flask API running on port 5001 providing health check (/health) and prediction (/predict) endpoints.   
-Member4_Counterfeit_Guide.pdf
-+ 1
-
-test_service.py: Tests the local ML service and verifies the full end-to-end pathway through Member 2's API and the blockchain.   
-Member4_Counterfeit_Guide.pdf
-+ 1
-
-5. Setup Instructions
 Bash
 
 
-# 1. Create and enter project directory
-mkdir C:\pharmachain\pharmachain-vision
-cd C:\pharmachain\pharmachain-vision
+git clone [https://github.com/YOUR-USERNAME/pharmachain-vision.git](https://github.com/YOUR-USERNAME/pharmachain-vision.git)
+cd pharmachain-vision
+Create and activate a virtual environment:
 
-# 2. Set up virtual environment
+Bash
+
+
 python -m venv venv
+# On Windows:
 venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+Install dependencies:
 
-# 3. Create requirements.txt and install dependencies
-# (Paste requirements from documentation into requirements.txt)
+Bash
+
+
 pip install -r requirements.txt
-(Note: If PowerShell blocks script execution, run Set-ExecutionPolicy -Scope CurrentUser RemoteSigned or use Command Prompt venv\Scripts\activate.bat).   
-Member4_Counterfeit_Guide.pdf
-
-6. Demo Commands
-Step A: Prove pipeline with demo data & train   
-Member4_Counterfeit_Guide.pdf
+Usage
+1. Dataset Generation & Training
+Option A: Quick Pipeline Test (Demo Data)
 
 Bash
 
 
 python make_demo_data.py
 python train.py --epochs 6
-Step B: Build real dataset & retrain (Optional)   
-Member4_Counterfeit_Guide.pdf
+Option B: Real Photos + Synthesized Fakes
+Place at least 60 genuine packaging photos into a real_genuine/ folder, then run:
 
 Bash
 
 
-# Put real genuine photos in real_genuine/ folder first
 python make_counterfeits.py --variants 6
 python train.py --epochs 8 --unfreeze layer4
-Step C: Classify a single photo   
-Member4_Counterfeit_Guide.pdf
-
+2. Single Image Inference (CLI)
 Bash
 
 
-python predict.py data\test\counterfeit\counterfeit_000.png
-Step D: Start the API service   
-Member4_Counterfeit_Guide.pdf
-
+python predict.py path/to/photo.jpg
+3. Start the API Service
 Bash
 
 
 python ml_service.py
-Test the full path (in a separate terminal):   
-Member4_Counterfeit_Guide.pdf
+The service will start on http://127.0.0.1:5001.
+
+4. Run Integration Tests
+With ml_service.py running in a separate terminal:
 
 Bash
+
+
 python test_service.py
-7. Testing Results
-Demo Data Metrics: On synthetic demo data, test accuracy hits roughly 1.000 with clean diagonal confusion matrices ([[30, 0], [0, 30]]).   
-Member4_Counterfeit_Guide.pdf
+API Endpoints
+GET /health
+Checks if the service is running and returns the loaded class names.
 
-Service Test Output:
+Response:
 
-Genuine photo: {'confidence': 1.0, 'label': 'genuine', 'ok': True} 
-→
-→ Batch verdict: GENUINE.   
-Member4_Counterfeit_Guide.pdf
+JSON
 
-Counterfeit photo: {'confidence': 0.9999, 'label': 'counterfeit', 'ok': True} 
-→
-→ Batch verdict: COMPROMISED.   
-Member4_Counterfeit_Guide.pdf
 
-8. Important Notes & Limitations
-Data Leakage Prevention: make_counterfeits.py splits source photos into train/val/test splits before generating variants, ensuring a base photo never overlaps across splits.   
-Member4_Counterfeit_Guide.pdf
-+ 1
+{
+  "ok": true,
+  "classes": ["counterfeit", "genuine"]
+}
+POST /predict
+Classifies an uploaded packaging image.
 
-Augmentation Restrictions: Training augmentations intentionally exclude horizontal flips and color jitters, as mirrored text and shifted colors are primary indicators of counterfeits.   
-Member4_Counterfeit_Guide.pdf
-+ 1
+Request: multipart/form-data with the image file in the image field.
 
-Report Limitations to State:
+Example (cURL):
 
-Synthesized counterfeits mean the model learns specific artificial defects rather than all real-world variants.   
-Member4_Counterfeit_Guide.pdf
-+ 1
+Bash
 
-Small datasets from limited brands restrict overall generalization.   
-Member4_Counterfeit_Guide.pdf
-+ 1
 
-Softmax confidence is a design threshold (
-0.7
-0.7) rather than a calibrated true probability.   
-Member4_Counterfeit_Guide.pdf
-+ 1
+curl -F "image=@box.jpg" [http://127.0.0.1:5001/predict](http://127.0.0.1:5001/predict)
+Response (200 OK):
 
-9. Member 4 Contribution Summary
-Developed the complete computer vision pipeline (dataset generation/augmentation, ResNet-18 transfer learning model, evaluation scripts, and single-image prediction tool).   
-Member4_Counterfeit_Guide.pdf
-+ 4
+JSON
 
-Deployed and maintained the ml_service.py Flask API on port 5001 to integrate seamlessly with Member 2's verification workflow and Member 5's UI portal.   
-Member4_Counterfeit_Guide.pdf
-+ 1
 
-Validated end-to-end integration with local blockchain states (GENUINE vs. COMPROMISED).   
-Member4_Counterfeit_Guide.pdf
-+ 2
+{
+  "ok": true,
+  "label": "counterfeit",
+  "confidence": 0.9142,
+  "scores": {
+    "counterfeit": 0.9142,
+    "genuine": 0.0858
+  }
+}
+Model Design Notes & Limitations
+No Flips or Color Jitter: Standard data augmentations like horizontal flips and color jitter are intentionally excluded during training, as mirrored text and color shifts are primary indicators of counterfeit packaging.
+
+Data Leakage Prevention: make_counterfeits.py splits original photos into train, val, and test sets before generating synthetic variants so derived images never cross splits.
+
+Known Limitations: Models trained on synthesized defects may not generalize to all real-world counterfeits without real regulator samples, and raw softmax confidence scores are uncalibrated probabilities.
