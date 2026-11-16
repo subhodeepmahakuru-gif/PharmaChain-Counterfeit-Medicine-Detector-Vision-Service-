@@ -1,16 +1,9 @@
-
-"""
 train_resnet.py
 
 PharmaChain - Member 4: Counterfeit Detector
 
 ResNet-18 transfer learning:
 Genuine vs Counterfeit Packaging
-
-NOTE:
-Model predictions are experimental and must not be used
-to establish medicine authenticity or patient safety.
-"""
 
 import argparse
 import json
