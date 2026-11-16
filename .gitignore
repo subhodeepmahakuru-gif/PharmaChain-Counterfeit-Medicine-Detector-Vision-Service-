@@ -1,0 +1,12 @@
+
+venv/
+__pycache__/
+data/
+data_real/
+real_genuine/
+git init
+git add .
+git commit -m "PharmaChain counterfeit detector"
+git branch -M main
+git remote add origin https://github.com/YOUR-USERNAME/pharmachain-vision.git
+git push -u origin main
